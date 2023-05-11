@@ -22,7 +22,7 @@ test_sources = [
 ]
 
 requires = [
-	"videogrep==2.1.2",
+	"videogrep==2.1.3",
 	"vosk==0.3.44",
 	"setuptools",
 ]
