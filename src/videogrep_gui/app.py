@@ -1,7 +1,11 @@
 """
 Videogrep gui
 """
+import asyncio
 import os
+import shutil
+import subprocess
+from collections import Counter
 
 import toga
 import videogrep
@@ -13,6 +17,7 @@ class VideogrepGui(toga.App):
     def startup(self):
         self.videos = []
         self.has_loaded = False
+        self.working = False
 
         self.main_window = toga.MainWindow(title=self.name, size=(1000, 600))
 
@@ -78,19 +83,46 @@ class VideogrepGui(toga.App):
                         toga.Selection(
                             id="search_type",
                             items=["Sentences", "Words"],
+                            on_select=self.search,
                             style=Pack(padding_right=10),
                         ),
                         toga.Button("Search", on_press=self.search),
                     ]
                 ),
+                toga.Divider(
+                    style=Pack(padding_bottom=20, padding_top=20),
+                ),
+                toga.Box(
+                    children=[
+                        toga.Label("Padding (ms)", style=Pack(padding_right=10)),
+                        toga.NumberInput(
+                            min_value=0, max_value=1000, step=1, value=0, id="padding"
+                        ),
+                    ]
+                ),
+                toga.Box(
+                    children=[
+                        toga.Label("Shift (ms)", style=Pack(padding_right=10)),
+                        toga.NumberInput(
+                            min_value=-1000,
+                            max_value=1000,
+                            step=1,
+                            value=0,
+                            id="resync",
+                        ),
+                    ],
+                    style=Pack(padding_top=10),
+                ),
             ],
             style=Pack(padding=20, flex=1, direction=COLUMN),
         )
 
-        self.right_box = toga.Box(
-            style=Pack(flex=1, padding=20, direction=COLUMN),
+        self.right_box = toga.OptionContainer(style=Pack(flex=1, padding=20))
+
+        results_box = toga.Box(
+            style=Pack(flex=1, padding=10, direction=COLUMN),
             children=[
-                toga.Label("Results"),
+                toga.Label("Search Results"),
                 toga.MultilineTextInput(
                     id="results",
                     readonly=True,
@@ -104,11 +136,49 @@ class VideogrepGui(toga.App):
                 toga.Box(
                     children=[
                         toga.Box(style=Pack(flex=1)),
+                        toga.Button(
+                            "Preview",
+                            on_press=self.preview,
+                            style=Pack(padding_right=10),
+                        ),
                         toga.Button("Export", on_press=self.export),
                     ]
                 ),
             ],
         )
+
+        analysis_box = toga.Box(
+            style=Pack(flex=1, padding=10, direction=COLUMN),
+            children=[
+                toga.Box(
+                    children=[
+                        toga.Label(
+                            "Frequent words in groups of", style=Pack(padding_right=10)
+                        ),
+                        toga.NumberInput(
+                            min_value=1,
+                            max_value=10,
+                            step=1,
+                            value=1,
+                            id="ngrams",
+                            on_change=self.get_ngrams,
+                        ),
+                    ]
+                ),
+                toga.MultilineTextInput(
+                    id="ngrams_holder",
+                    readonly=True,
+                    style=Pack(
+                        flex=1,
+                        padding_top=10,
+                        font_family="monospace",
+                    ),
+                ),
+            ],
+        )
+
+        self.right_box.add("Search Results", results_box)
+        self.right_box.add("Common Words", analysis_box)
 
         self.main_box = toga.Box(
             style=Pack(direction=ROW),
@@ -122,16 +192,89 @@ class VideogrepGui(toga.App):
         # Show the main window
         self.main_window.show()
 
+    def get_ngrams(self, _n):
+        if len(self.videos) == 0:
+            return False
+        n = int(self.widgets.get("ngrams").value)
+        grams = videogrep.get_ngrams(self.videos, n=n)
 
-    def transcribe(self, button):
-        self.working = True
+        most_common = Counter(grams).most_common(100)
+
+        out = []
+
+        for ngram, count in most_common:
+            out.append(" ".join(ngram) + " (" + str(count) + ")")
+
+        self.widgets.get("ngrams_holder").value = "\n".join(out)
+
+    async def transcribe(self, button):
+        if len(self.videos) == 0:
+            return False
+
         self.toggle_work()
-        for f in self.videos:
-            transcribe.transcribe(f)
-        self.working = False
+
+        def render():
+            for f in self.videos:
+                transcribe.transcribe(f)
+
+        await asyncio.get_event_loop().run_in_executor(None, render)
+
         self.toggle_work()
+
+    async def preview(self, button):
+        mpv_exists = shutil.which("mpv")
+        if mpv_exists is None:
+            result = await self.main_window.confirm_dialog(
+                "Unable to Preview",
+                "MPV is required to preview. Would you like to download it now?",
+            )
+            if result:
+                import webbrowser
+
+                webbrowser.open("https://mpv.io/")
+                return False
+
+        q = self.widgets.get("q").value
+        if len(self.videos) == 0 or q.strip() == "":
+            return False
+        search_type = {"Sentences": "sentence", "Words": "fragment"}[
+            self.widgets.get("search_type").value
+        ]
+
+        pad = float(self.widgets.get("padding").value)
+        if pad != 0:
+            pad = pad / 1000
+
+        resync = float(self.widgets.get("resync").value)
+        if resync != 0:
+            resync = resync / 1000
+
+        composition = videogrep.search(
+            files=self.videos,
+            query=q,
+            search_type=search_type,
+        )
+        composition = videogrep.pad_and_sync(composition, padding=pad, resync=resync)
+
+        lines = []
+        for c in composition:
+            lines.append(
+                f"{os.path.abspath(c['file'])},{c['start']},{c['end']-c['start']}"
+            )
+
+        edl = "edl://" + ";".join(lines)
+
+        proc = await asyncio.create_subprocess_exec("mpv", edl, "--loop")
+        # def prev():
+        #     subprocess.run(["mpv", edl])
+        #
+        # await asyncio.get_event_loop().run_in_executor(None, prev)
 
     async def export(self, button):
+        q = self.widgets.get("q").value
+        if len(self.videos) == 0 or q.strip() == "":
+            return False
+
         try:
             output = await self.main_window.save_file_dialog(
                 "Save as", "supercut.mp4", file_types=["mp4"]
@@ -143,16 +286,35 @@ class VideogrepGui(toga.App):
                     self.widgets.get("search_type").value
                 ]
 
-                q = self.widgets.get("q").value
+                pad = float(self.widgets.get("padding").value)
+                if pad != 0:
+                    pad = pad / 1000
 
-                videogrep.videogrep(
-                    files=self.videos, query=q, search_type=search_type, output=output
-                )
+                resync = float(self.widgets.get("resync").value)
+                if resync != 0:
+                    resync = resync / 1000
+
+                self.toggle_work()
+
+                def render():
+                    videogrep.videogrep(
+                        files=self.videos,
+                        query=q,
+                        search_type=search_type,
+                        padding=pad,
+                        resync=resync,
+                        output=output,
+                    )
+
+                await asyncio.get_event_loop().run_in_executor(None, render)
+                self.toggle_work()
 
         except Exception as e:
             print(e)
 
     def toggle_work(self):
+        self.working = not self.working
+
         if self.working:
             self.main_window.content = self.working_box
         else:
@@ -193,7 +355,7 @@ class VideogrepGui(toga.App):
                     )
                     self.main_window.content = self.main_box
                     self.has_loaded = True
-                    print(paths)
+                    self.get_ngrams(None)
             else:
                 print("none")
         except ValueError:
