@@ -77,9 +77,9 @@ jobs:
         file_type: [ msi, dmg ]
         include:
           - file_type: msi
-            output_dir: windows
+            output_dir: dist
           - file_type: dmg
-            output_dir: macOS
+            output_dir: dist
     runs-on: ubuntu-latest
     steps:
     - name: Download ${{ matrix.file_type }}
@@ -102,6 +102,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ env.RELEASE_URL }}
-        asset_path: ${{ matrix.output_dir }}/EddingtonGUI-${{ env.RELEASE_VERSION }}.${{ matrix.file_type }}
-        asset_name: EddingtonGUI-${{ env.RELEASE_VERSION }}.${{ matrix.file_type }}
+        asset_path: ${{ matrix.output_dir }}/Videogrep-${{ env.RELEASE_VERSION }}.${{ matrix.file_type }}
+        asset_name: Videogrep-${{ env.RELEASE_VERSION }}.${{ matrix.file_type }}
         asset_content_type: application/x-ole-storage
