@@ -13,7 +13,7 @@ formal_name = "Videogrep"
 description = "Videogrep gui"
 long_description = """More details about the app should go here.
 """
-icon = "src/videogrep_gui/resources/icon"
+icon = "src/videogrep_gui/resources/videogrep_gui"
 sources = [
     "src/videogrep_gui",
 ]
