@@ -222,8 +222,42 @@ class VideogrepGui(toga.App):
         self.toggle_work()
 
     async def preview(self, button):
-        mpv_exists = shutil.which("mpv")
-        if mpv_exists is None:
+        try:
+            q = self.widgets.get("q").value
+            if len(self.videos) == 0 or q.strip() == "":
+                return False
+            search_type = {"Sentences": "sentence", "Words": "fragment"}[
+                self.widgets.get("search_type").value
+            ]
+
+            pad = float(self.widgets.get("padding").value)
+            if pad != 0:
+                pad = pad / 1000
+
+            resync = float(self.widgets.get("resync").value)
+            if resync != 0:
+                resync = resync / 1000
+
+            composition = videogrep.search(
+                files=self.videos,
+                query=q,
+                search_type=search_type,
+            )
+            composition = videogrep.pad_and_sync(
+                composition, padding=pad, resync=resync
+            )
+
+            lines = []
+            for c in composition:
+                lines.append(
+                    f"{os.path.abspath(c['file'])},{c['start']},{c['end']-c['start']}"
+                )
+
+            edl = "edl://" + ";".join(lines)
+
+            proc = await asyncio.create_subprocess_exec("mpv", edl, "--loop")
+            
+        except Exception as e:
             result = await self.main_window.confirm_dialog(
                 "Unable to Preview",
                 "MPV is required to preview. Would you like to download it now?",
@@ -233,42 +267,6 @@ class VideogrepGui(toga.App):
 
                 webbrowser.open("https://mpv.io/")
                 return False
-
-        q = self.widgets.get("q").value
-        if len(self.videos) == 0 or q.strip() == "":
-            return False
-        search_type = {"Sentences": "sentence", "Words": "fragment"}[
-            self.widgets.get("search_type").value
-        ]
-
-        pad = float(self.widgets.get("padding").value)
-        if pad != 0:
-            pad = pad / 1000
-
-        resync = float(self.widgets.get("resync").value)
-        if resync != 0:
-            resync = resync / 1000
-
-        composition = videogrep.search(
-            files=self.videos,
-            query=q,
-            search_type=search_type,
-        )
-        composition = videogrep.pad_and_sync(composition, padding=pad, resync=resync)
-
-        lines = []
-        for c in composition:
-            lines.append(
-                f"{os.path.abspath(c['file'])},{c['start']},{c['end']-c['start']}"
-            )
-
-        edl = "edl://" + ";".join(lines)
-
-        proc = await asyncio.create_subprocess_exec("mpv", edl, "--loop")
-        # def prev():
-        #     subprocess.run(["mpv", edl])
-        #
-        # await asyncio.get_event_loop().run_in_executor(None, prev)
 
     async def export(self, button):
         q = self.widgets.get("q").value
