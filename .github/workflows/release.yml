@@ -15,10 +15,10 @@ jobs:
         include:
           - file_type: msi
             op: windows-latest
-            output_dir: windows
+            output_dir: dist 
           - file_type: dmg
             op: macos-latest
-            output_dir: macOS
+            output_dir: dist
             package_args: --no-sign
     runs-on: ${{ matrix.op }}
     steps:
