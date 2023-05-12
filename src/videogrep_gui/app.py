@@ -218,6 +218,7 @@ class VideogrepGui(toga.App):
                 transcribe.transcribe(f)
 
         await asyncio.get_event_loop().run_in_executor(None, render)
+        self.post_load()
 
         self.toggle_work()
 
@@ -351,14 +352,18 @@ class VideogrepGui(toga.App):
                     self.files_list.value = "\n".join(
                         [os.path.basename(p) for p in self.videos]
                     )
-                    self.main_window.content = self.main_box
-                    self.has_loaded = True
-                    self.get_ngrams(None)
+                    # if not self.has_loaded:
+                    #     self.main_window.content = self.main_box
+                    #     self.has_loaded = True
+                    self.post_load()
             else:
                 print("none")
         except ValueError:
             pass
 
+    def post_load(self):
+        self.get_ngrams(None)
+        self.search(None)
 
 def main():
     return VideogrepGui("Videogrep", "lav.io.videogrep")
