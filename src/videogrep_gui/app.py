@@ -36,15 +36,6 @@ class VideogrepGui(toga.App):
             style=Pack(direction=COLUMN, alignment=CENTER),
         )
 
-        self.first_box = toga.Box(
-            children=[
-                toga.Box(style=Pack(flex=1)),
-                toga.Box(children=[load_button]),
-                toga.Box(style=Pack(flex=1)),
-            ],
-            style=Pack(direction=COLUMN, alignment=CENTER),
-        )
-
         self.files_list = toga.MultilineTextInput(
             readonly=True,
             style=Pack(background_color="#fff", padding_top=10, padding_bottom=10),
@@ -117,36 +108,6 @@ class VideogrepGui(toga.App):
             style=Pack(padding=20, flex=1, direction=COLUMN),
         )
 
-        self.right_box = toga.OptionContainer(style=Pack(flex=1, padding=20))
-
-        results_box = toga.Box(
-            style=Pack(flex=1, padding=10, direction=COLUMN),
-            children=[
-                toga.Label("Search Results"),
-                toga.MultilineTextInput(
-                    id="results",
-                    readonly=True,
-                    style=Pack(
-                        flex=1,
-                        padding_top=10,
-                        padding_bottom=10,
-                        font_family="monospace",
-                    ),
-                ),
-                toga.Box(
-                    children=[
-                        toga.Box(style=Pack(flex=1)),
-                        toga.Button(
-                            "Preview",
-                            on_press=self.preview,
-                            style=Pack(padding_right=10),
-                        ),
-                        toga.Button("Export", on_press=self.export),
-                    ]
-                ),
-            ],
-        )
-
         analysis_box = toga.Box(
             style=Pack(flex=1, padding=10, direction=COLUMN),
             children=[
@@ -177,16 +138,53 @@ class VideogrepGui(toga.App):
             ],
         )
 
+        results_box = toga.Box(
+            children=[
+                toga.MultilineTextInput(
+                    id="results",
+                    readonly=True,
+                    style=Pack(
+                        direction=COLUMN,
+                        flex=1,
+                        padding=0,
+                        font_family="monospace",
+                    ),
+                )
+            ],
+            style=Pack(direction=COLUMN, padding=10),
+        )
+
+        export_buttons = toga.Box(
+            children=[
+                toga.Box(style=Pack(flex=1)),
+                toga.Button(
+                    "Preview",
+                    on_press=self.preview,
+                    style=Pack(padding_right=10),
+                ),
+                toga.Button("Export", on_press=self.export),
+            ],
+            style=Pack(padding=(0, 20, 20, 20))
+
+        )
+
+        self.right_box = toga.OptionContainer(style=Pack(flex=1, padding=20))
         self.right_box.add("Search Results", results_box)
         self.right_box.add("Common Words", analysis_box)
 
         self.main_box = toga.Box(
             style=Pack(direction=ROW),
-            children=[self.left_box, toga.Divider(direction=1), self.right_box],
+            children=[
+                self.left_box,
+                toga.Divider(direction=1),
+                toga.Box(
+                    style=Pack(direction=COLUMN, flex=1),
+                    children=[self.right_box, export_buttons],
+                ),
+            ],
         )
         # self.main_box.style.padding = 20
 
-        # self.main_window.content = self.first_box
         self.main_window.content = self.main_box
 
         # Show the main window
@@ -257,7 +255,7 @@ class VideogrepGui(toga.App):
             edl = "edl://" + ";".join(lines)
 
             proc = await asyncio.create_subprocess_exec("mpv", edl, "--loop")
-            
+
         except Exception as e:
             result = await self.main_window.confirm_dialog(
                 "Unable to Preview",
@@ -364,6 +362,7 @@ class VideogrepGui(toga.App):
     def post_load(self):
         self.get_ngrams(None)
         self.search(None)
+
 
 def main():
     return VideogrepGui("Videogrep", "lav.io.videogrep")
