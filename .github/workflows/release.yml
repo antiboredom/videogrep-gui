@@ -14,8 +14,10 @@ jobs:
         file_type: [ msi, dmg ]
         include:
           - file_type: msi
-            op: windows-latest
+            # op: windows-latest
+            op: windows-2019
             output_dir: dist 
+            package_args: --no-sign
           - file_type: dmg
             op: macos-latest
             output_dir: dist
