@@ -3,13 +3,11 @@ Videogrep gui
 """
 import asyncio
 import os
-import shutil
-import subprocess
 from collections import Counter
 
 import toga
 import videogrep
-from toga.style.pack import CENTER, COLUMN, LEFT, RIGHT, ROW, Pack
+from toga.style.pack import CENTER, COLUMN, ROW, Pack
 from videogrep import transcribe
 
 
@@ -20,12 +18,6 @@ class VideogrepGui(toga.App):
         self.working = False
 
         self.main_window = toga.MainWindow(title=self.name, size=(1000, 600))
-
-        load_button = toga.Button(
-            "Open Video(s)",
-            on_press=self.load_videos,
-            style=Pack(padding=0, alignment=CENTER),
-        )
 
         self.working_box = toga.Box(
             children=[
@@ -42,7 +34,6 @@ class VideogrepGui(toga.App):
         )
 
         self.left_box = toga.Box(
-            # style=Pack(direction=COLUMN),
             children=[
                 toga.Label("Videos"),
                 self.files_list,
