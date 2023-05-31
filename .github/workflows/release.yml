@@ -21,7 +21,7 @@ jobs:
           - file_type: dmg
             op: macos-latest
             output_dir: dist
-            package_args: --no-sign
+            package_args: --adhoc-sign
     runs-on: ${{ matrix.op }}
     steps:
       - name: Checkout code
