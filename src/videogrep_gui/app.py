@@ -218,7 +218,6 @@ class VideogrepGui(toga.App):
         ]
 
         mpv_path = None
-        failed = False
 
         for p in mpv_paths:
             if os.path.exists(p):
