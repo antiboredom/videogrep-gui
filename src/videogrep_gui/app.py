@@ -212,8 +212,8 @@ class VideogrepGui(toga.App):
 
     async def preview(self, button):
         mpv_paths = [
-            "/usr/local/bin/mpv2",  # homebrew mac
-            "/Applications/mpv.app/Contents/MacOS/mpv2",  # regular app mac
+            "/usr/local/bin/mpv",  # homebrew mac
+            "/Applications/mpv.app/Contents/MacOS/mpv",  # regular app mac
             # todo: add windows paths
         ]
 
