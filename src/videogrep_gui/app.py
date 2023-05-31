@@ -155,8 +155,7 @@ class VideogrepGui(toga.App):
                 ),
                 toga.Button("Export", on_press=self.export),
             ],
-            style=Pack(padding=(0, 20, 20, 20))
-
+            style=Pack(padding=(0, 20, 20, 20)),
         )
 
         self.right_box = toga.OptionContainer(style=Pack(flex=1, padding=20))
@@ -212,6 +211,23 @@ class VideogrepGui(toga.App):
         self.toggle_work()
 
     async def preview(self, button):
+        mpv_paths = [
+            "/usr/local/bin/mpv2",  # homebrew mac
+            "/Applications/mpv.app/Contents/MacOS/mpv2",  # regular app mac
+            # todo: add windows paths
+        ]
+
+        mpv_path = None
+        failed = False
+
+        for p in mpv_paths:
+            if os.path.exists(p):
+                mpv_path = p
+
+        if mpv_path is None:
+            await self.install_mpv()
+            return False
+
         try:
             q = self.widgets.get("q").value
             if len(self.videos) == 0 or q.strip() == "":
@@ -245,18 +261,23 @@ class VideogrepGui(toga.App):
 
             edl = "edl://" + ";".join(lines)
 
-            proc = await asyncio.create_subprocess_exec("mpv", edl, "--loop")
+            await asyncio.create_subprocess_exec(mpv_path, edl, "--loop")
 
         except Exception as e:
-            result = await self.main_window.confirm_dialog(
-                "Unable to Preview",
-                "MPV is required to preview. Would you like to download it now?",
-            )
-            if result:
-                import webbrowser
+            print(e)
+            await self.install_mpv()
+            return False
 
-                webbrowser.open("https://mpv.io/")
-                return False
+    async def install_mpv(self):
+        result = await self.main_window.confirm_dialog(
+            "Unable to Preview",
+            "MPV is required to preview. Would you like to download it now?",
+        )
+        if result:
+            import webbrowser
+
+            webbrowser.open("https://mpv.io/")
+            return False
 
     async def export(self, button):
         q = self.widgets.get("q").value
