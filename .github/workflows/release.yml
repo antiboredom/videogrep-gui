@@ -21,9 +21,31 @@ jobs:
           - file_type: dmg
             op: macos-latest
             output_dir: dist
-            package_args: --adhoc-sign
+            # package_args: --adhoc-sign
     runs-on: ${{ matrix.op }}
     steps:
+      - name: setupsign
+        shell: bash
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERT_DATA: ${{ secrets.APPLE_CERT_DATA }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          # Export certs
+          echo "$APPLE_CERT_DATA" | base64 --decode > /tmp/certs.p12
+
+          # Create keychain
+          security create-keychain -p actions macos-build.keychain
+          security default-keychain -s macos-build.keychain
+          security unlock-keychain -p actions macos-build.keychain
+          security set-keychain-settings -t 3600 -u macos-build.keychain
+
+          # Import certs to keychain
+          security import /tmp/certs.p12 -k ~/Library/Keychains/macos-build.keychain -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign
+
+          # Key signing
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions macos-build.keychain
+
       - name: Checkout code
         uses: actions/checkout@master
       - name: Set up Python 3.11
